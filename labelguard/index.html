@@ -25,7 +25,7 @@ small{color:#8a94a5}@media(max-width:800px){main{grid-template-columns:1fr;paddi
 <div class="camera"><video id="video" autoplay muted playsinline></video><div class="frame"></div><div class="scanline"></div></div>
 <div class="controls">
 <button id="start">Start camera</button><button id="front" class="alt" disabled>Capture front</button>
-<button id="back" class="alt" disabled>Capture back + QR</button><button id="analyze" disabled>Analyze</button><button id="stop" class="alt">Stop</button>
+<button id="back" class="alt" disabled>Capture label / QR</button><button id="analyze" disabled>Analyze</button><button id="stop" class="alt">Stop</button>
 </div>
 <div id="status" class="status">Start the camera and keep the package inside the frame.</div>
 <div class="thumbs"><img id="fthumb" class="thumb" alt=""><img id="bthumb" class="thumb" alt=""></div>
@@ -47,10 +47,10 @@ let stream=null,frontImage='',backImage='',qrData='',qrTimer=null,busy=false;
 const status=x=>statusEl.textContent=x;
 function frameData(){const w=v.videoWidth,h=v.videoHeight;if(!w||!h)return '';c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);return c.toDataURL('image/jpeg',.86)}
 function startQR(){clearInterval(qrTimer);qrTimer=setInterval(()=>{if(!stream||v.readyState<2||busy)return;const w=v.videoWidth,h=v.videoHeight;c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(v,0,0,w,h);const d=ctx.getImageData(0,0,w,h);const code=window.jsQR?jsQR(d.data,w,h,{inversionAttempts:'attemptBoth'}):null;if(code){qrData=code.data;document.getElementById('qr').textContent='QR detected: '+qrData;status('QR detected. Capture the back label to include it in analysis.');}},700)}
-async function start(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}},audio:false});v.srcObject=stream;await v.play();frontBtn.disabled=backBtn.disabled=false;status('Camera live. Capture the FRONT label first.');startQR()}catch(e){status('Camera error: '+e.message+'. Use HTTPS and allow camera access.')}}
+async function start(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}},audio:false});v.srcObject=stream;await v.play();frontBtn.disabled=backBtn.disabled=false;status('Camera live. QR is optional. If a QR is found, it will be used; otherwise the label is scanned. Capture the FRONT label.');startQR()}catch(e){status('Camera error: '+e.message+'. Use HTTPS and allow camera access.')}}
 function stop(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;v.srcObject=null;clearInterval(qrTimer);qrTimer=null;frontBtn.disabled=backBtn.disabled=true;status('Camera stopped.')}
 frontBtn.onclick=()=>{frontImage=frameData();document.getElementById('fthumb').src=frontImage;analyzeBtn.disabled=false;status('Front captured. Turn the package around and capture the BACK.')}
-backBtn.onclick=()=>{backImage=frameData();document.getElementById('bthumb').src=backImage;analyzeBtn.disabled=!frontImage;status(qrData?'Back captured + QR found. Ready to analyze.':'Back captured. Ready to analyze; QR was not detected.')}
+backBtn.onclick=()=>{backImage=frameData();document.getElementById('bthumb').src=backImage;analyzeBtn.disabled=!frontImage;status(qrData?'QR found — QR route will be used, with label fallback. Ready to analyze.':'No QR found — label route will be used. Ready to analyze.')}
 async function analyze(){if(!frontImage||busy)return;busy=true;analyzeBtn.disabled=true;status('Sending front + back + QR to AI vision…');try{
  const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({front_image:frontImage,back_image:backImage||null,qr_data:qrData||null})});
  const d=await r.json();if(!r.ok)throw new Error(d.detail||'Server error');
@@ -59,6 +59,6 @@ async function analyze(){if(!frontImage||busy)return;busy=true;analyzeBtn.disabl
  document.getElementById('coverage').textContent='Declaration coverage: '+d.coverage+'% • '+d.found_fields+'/'+d.checked_fields+' fields found';
  const rows={product_name:'Product',net_quantity:'Net quantity',mrp:'MRP',manufacturer:'Manufacturer',consumer_care:'Consumer care',country_of_origin:'Country of origin',batch_lot:'Batch / Lot',manufacturing_date:'Manufacturing date',expiry_best_before:'Expiry / Best before',fssai:'FSSAI',barcode_or_gtin:'Barcode / GTIN',qr_details:'QR details'};
  document.getElementById('fields').innerHTML=Object.entries(rows).map(([k,l])=>'<tr><td>'+l+'</td><td>'+(d[k]||'NOT FOUND')+'</td></tr>').join('');
- status('AI analysis complete.');}catch(e){status('Analysis failed: '+e.message)}finally{busy=false;analyzeBtn.disabled=false}}
+ status('AI analysis complete — '+(d.source||'Label scan')+'.');}catch(e){status('Analysis failed: '+e.message)}finally{busy=false;analyzeBtn.disabled=false}}
 document.getElementById('start').onclick=start;document.getElementById('stop').onclick=stop;frontBtn.onclick=frontBtn.onclick;analyzeBtn.onclick=analyze;
 </script></body></html>
