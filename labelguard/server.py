@@ -69,7 +69,7 @@ def analyze(req: AnalyzeRequest):
 Read the supplied package images carefully. Extract only information visibly present in the images or supplied QR payload.
 Do not invent missing values. If a field is not visible, return an empty string.
 MRP is especially important: recognize MRP, M.R.P, Maximum Retail Price, Rs, INR and ₹ forms, including OCR-like spacing.
-Read both front and back images. QR data is authoritative only as supplied; do not claim it was verified against a government database.
+If QR data is supplied, use the QR route first and extract any relevant product details from it. If QR data is absent or does not contain a needed declaration, fall back to the visible label images. QR is optional and must never be required for a compliance scan. Do not claim the QR was verified against a government database. Read the visible label images as the fallback source.
 Return JSON matching the schema exactly. The system checks declarations only; it does not physically measure quantity or establish legal authenticity."""
     content = [{"type":"text","text":prompt}, img_part(req.front_image)]
     if req.back_image and data_url_ok(req.back_image):
@@ -99,4 +99,5 @@ Return JSON matching the schema exactly. The system checks declarations only; it
     data["status"] = status
     data["found_fields"] = found
     data["checked_fields"] = len(fields)
+    data["source"] = "QR + label fallback" if req.qr_data else "Label scan"
     return data
