@@ -50,7 +50,7 @@ def img_part(data_url):
 
 @app.get("/")
 def home():
-    return FileResponse(os.path.join(ROOT, "labelguard", "index.html"))
+    return FileResponse(os.path.join(ROOT, "index.html"))
 
 @app.get("/health")
 def health():
