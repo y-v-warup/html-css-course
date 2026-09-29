@@ -8,7 +8,7 @@ from openai import OpenAI
 
 app = FastAPI(title="LabelGuard AI")
 ROOT = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=os.path.join(ROOT, "labelguard")), name="static")
+app.mount("/static", StaticFiles(directory=ROOT), name="static")
 
 class AnalyzeRequest(BaseModel):
     front_image: str
